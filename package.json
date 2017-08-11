@@ -1,0 +1,23 @@
+{
+  "name": "question-extractor",
+  "version": "0.0.0",
+  "description": "Extracts questions and answers from text files.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gretelilijane/question-extractor.git"
+  },
+  "author": "Grete-Lilijane Küppas <gretelilijane@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gretelilijane/question-extractor/issues"
+  },
+  "homepage": "https://github.com/gretelilijane/question-extractor#readme",
+  "dependencies": {
+    "mammoth": "^1.4.2",
+    "odt2html": "^1.0.1"
+  }
+}
