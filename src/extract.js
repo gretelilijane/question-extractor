@@ -19,7 +19,7 @@ exports.extractQuestions = function (html) {
   let match, answerMatch
   let i = 0
 
-  html = html.replace(/<img .*?>/g, '<img>') // During testing only
+  //html = html.replace(/<img .*?>/g, '<img>') // During testing only
 
   while (match = questionRegex.exec(html)) {
     let answer, correctIndex
