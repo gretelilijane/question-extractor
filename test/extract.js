@@ -1,13 +1,15 @@
-'use strict'
-const path = require('path')
+"use strict"
+const path = require("path")
 // File system
-const fs = require('fs')
+const fs = require("fs")
 // Question extractor
-const qe = require('../src/index')
+const qe = require("../src/index")
 
-const file = '1voor_ben_est.docx'
-const filePath = path.join(__dirname,'docx', file)
+const filePath = path.join(__dirname, "html/example.html")
 
-qe.getQuestions(filePath).then((questions) => {
-  console.log(questions[1])
+// Read html in
+fs.readFile(filePath, (err, html) => {
+  if (err) throw err
+  let questions = qe.getQuestions(html.toString())
+  console.log(questions)
 })

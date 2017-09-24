@@ -1,94 +1,134 @@
-'use strict'
-const path = require('path')
+"use strict"
+const path = require("path")
 // File system
-const fs = require('fs')
+const fs = require("fs")
 
-exports.extractQuestions = function (html) {
-  let questionRegex = new RegExp(''
-  + /<strong>\d+\.\s*(.+?)<\/strong>/.source  // Question title
-  + /(?:\s*<\/[\w-]+>)*/.source // Closing tags ignored
-  + /([\s\S]+?)/.source // Question text
-  + /(?:<\w+>)*/.source // Opening tags ignored
-  + /\[(text|number|radio|order|checkbox|tekstikast|raadionupud|järjestus|märkeruudud):\s*([\s\S]+?)\]/.source // Question type and correct answer info
-  + /(?:<\/\w+>)*/.source // Closing tags ignored
-  + /(?:<ol>([\s\S]+?)<\/ol>)?/.source, 'gi') // Answers list if exists
+function getQuestions(html, regex) {
+  let h2Regex = /<h2>/g
+  let h2Indices = []
+  let index = 0
+  let match
 
-  let answerRegex = /<li>([\s\S]+?)<\/li>/g // List-group element
+  while ((match = h2Regex.exec(html))) {
+    h2Indices.push(match.index)
+  }
+  let questions = []
+  for (let i = 0; i < h2Indices.length; ++i) {
+    if (i === h2Indices.length - 1) {
+      questions.push(html.substring(h2Indices[i]))
+    } else {
+      questions.push(html.substring(h2Indices[i], h2Indices[i + 1]))
+    }
+  }
+  return questions
+}
+
+exports.extractQuestions = function(html) {
+  // Check if the question type is established in the beginning of the file
+  let defaultType
+  let questionType = html.match(/\[(radio|checkbox|order)\]/i)
+  if (questionType.index < html.match(/<h2>/i).index) {
+    defaultType = questionType[1]
+  }
+
+  let questionRegex = new RegExp(
+    "" +
+    /(?:<h2>)(?:\d+\.)?\s*(.+?)<\/h2>/.source + // Question title - match[0]
+    /([\s\S]+?)/.source + // Question text - match[1]
+    /(?:\[(text|number|radio|order|checkbox)(?::\s*([\s\S]+?))?\])?/.source + // Question type and correct answer info - match[2] & match[3]
+    /[\s\S]*?/.source + //trash
+    /(?:<(?:ol|ul)[\s\S]*?>([\s\S]+?)<\/(?:ul|ol)>)?/.source + // Answers list if exists - match[4]
+      /[\s\S]*?/.source,
+    "i"
+  )
+
+  let titleRegex = /(?:<h2>)\s*(.+?)<\/h2>/i
+  let typeRegex = /\[(text|number|radio|order|checkbox)(?::\s*([\s\S]+?))?\]/i
+
+  let answerRegex = /<li[\s\S]*?>([\s\S]+?)<\/li>/g // List-group element
   let numberRegex = /^\d*(,\s*\d*)*$/
+
   let questions = []
   let match, answerMatch
   let i = 0
 
-  //html = html.replace(/<img .*?>/g, '<img>') // During testing only
+  // Get question's html
+  let questionsArray = getQuestions(html, questionRegex)
+  let questionText, questionAnswersHtml
 
-  while (match = questionRegex.exec(html)) {
-    let answer, correctIndex
-    let answers = []
-    let question = {}
+  return questionsArray.map(function(questionHtml) {
+    // Question
+    const question = {}
+    let questionTitle = questionHtml.match(titleRegex)
+    let questionType = questionHtml.match(typeRegex)
+    let isNumeric, qi, ai
 
-    let type = match[3]
-    let correctAnswer = match[4]
-    let answersHtml = match[5]
-
-    // Is the answer index numeric or alphabetic
-    let isNumeric = numberRegex.test(correctAnswer)
-
-    question.title = match[1]
-    question.text = match[2]
-
-    let answerIndex = 0
-    switch(type.toLowerCase()) {
-      case 'text':
-      case 'tekstikast':
-      question.type = 'text'
-      answers.push(correctAnswer)
-      break
-      case 'number':
-      question.type = 'number'
-      answers.push(parseFloat(correctAnswer.replace(/\s/g,'')))
-      break
-      case 'radio':
-      case 'raadionupud':
-      question.type = 'radio'
-      if (isNumeric) {
-        correctIndex = parseInt(correctAnswer, 10)
-      } else {
-        correctIndex = correctAnswer.toLowerCase().trim().charCodeAt()-97 + 1
-      }
-      while (answerMatch = answerRegex.exec(answersHtml)) {
-        answers.push({text: answerMatch[1], correct: ++answerIndex === correctIndex})
-      }
-      break
-      case 'order':
-      case 'järjestus':
-      question.type = 'order'
-      if (isNumeric) {
-        correctIndex = correctAnswer.split(',').map(Number)
-      } else {
-        correctIndex = correctAnswer.toLowerCase().split(',').map(x => x.trim().charCodeAt()-97 + 1)
-      }
-      let unsortedAnswers = []
-      while (answerMatch = answerRegex.exec(answersHtml)) {
-        unsortedAnswers.push(answerMatch[1])
-      }
-      answers = correctIndex.map(index => unsortedAnswers[index-1])
-      break
-      case 'checkbox':
-      case 'märkeruudud':
-      question.type = 'checkbox'
-      if (isNumeric) {
-        correctIndex = correctAnswer.split(',').map(Number)
-      } else {
-        correctIndex = correctAnswer.toLowerCase().split(',').map(x => x.trim().charCodeAt()-97 + 1)
-      }
-      // Later changes answers =/\[([\s\S]+?)\]/g.exec(answerRegex.exec(answersHtml)[1])[1].split(",")
-      while (answerMatch = answerRegex.exec(answersHtml)) {
-        answers.push({text: answerMatch[1], correct: correctIndex.indexOf(++answerIndex) != -1})
-      }
-      break
+    if (questionType) {
+      qi = questionType.index
+      ai = questionType.index + questionType[0].length
+      question.type = questionType[1].toLowerCase()
+      isNumeric = numberRegex.test(questionType[2])
+    } else {
+      question.type = defaultType.toLowerCase()
+      qi = ai = Math.max(
+        questionHtml.lastIndexOf("<ol"),
+        questionHtml.lastIndexOf("<ul")
+      )
     }
-    question.answers = answers
-    questions.push(question)
-  }
-  return questions
+
+    question.title = questionTitle[1]
+    question.text = questionHtml.substring(
+      questionTitle.index + questionTitle[0].length,
+      qi
+    )
+
+    questionAnswersHtml = questionHtml.substring(ai)
+
+    switch (question.type) {
+      case "text":
+        question.answer = questionType[2]
+        break
+      case "number":
+        question.answer = parseFloat(
+          questionType[2].replace(/\s/g, "").replace(",", ".")
+        )
+        break
+      case "radio":
+      case "checkbox":
+        if (questionType) {
+          if (isNumeric) {
+            question.answer = questionType[2].split(",").map(Number)
+          } else {
+            question.answer = questionType[2]
+              .toLowerCase()
+              .split(",")
+              .map(x => x.trim().charCodeAt() - 97 + 1)
+          }
+        }
+      case "order":
+        if (!question.answer) {
+          question.answer = []
+        }
+        question.options = []
+        let i = 0
+        while ((answerMatch = answerRegex.exec(questionAnswersHtml))) {
+          if (question.type === "order") question.answer.push(i)
+          else if (!questionType) {
+            if (answerMatch[0].match(/font-weight:700/)) {
+              answerMatch[1] = answerMatch[1].replace(
+                "font-weight:700",
+                "font-weight:400"
+              )
+              question.answer.push(i)
+            }
+          }
+          question.options.push(answerMatch[1])
+          ++i
+        }
+
+        if (question.type === "radio") question.answer = question.answer[0]
+        break
+    }
+    return question
+  })
 }
