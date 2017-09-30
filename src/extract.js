@@ -27,7 +27,7 @@ exports.extractQuestions = function(html) {
   // Check if the question type is established in the beginning of the file
   let defaultType
   let questionType = html.match(/\[(radio|checkbox|order)\]/i)
-  if (questionType.index < html.match(/<h2>/i).index) {
+  if (questionType && questionType.index < html.match(/<h2>/i).index) {
     defaultType = questionType[1]
   }
 
@@ -35,7 +35,8 @@ exports.extractQuestions = function(html) {
     "" +
     /(?:<h2>)(?:\d+\.)?\s*(.+?)<\/h2>/.source + // Question title - match[0]
     /([\s\S]+?)/.source + // Question text - match[1]
-    /(?:\[(text|number|radio|order|checkbox)(?::\s*([\s\S]+?))?\])?/.source + // Question type and correct answer info - match[2] & match[3]
+    /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*(?::\s*([\s\S]+?))?(?:<[\s\S]*?>)*\])?/
+      .source + // Question type and correct answer info - match[2] & match[3]
     /[\s\S]*?/.source + //trash
     /(?:<(?:ol|ul)[\s\S]*?>([\s\S]+?)<\/(?:ul|ol)>)?/.source + // Answers list if exists - match[4]
       /[\s\S]*?/.source,
@@ -43,7 +44,9 @@ exports.extractQuestions = function(html) {
   )
 
   let titleRegex = /(?:<h2>)\s*(.+?)<\/h2>/i
-  let typeRegex = /\[(text|number|radio|order|checkbox)(?::\s*([\s\S]+?))?\]/i
+  let typeA = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*(?::\s*([\s\S]+?))?(?:<[\s\S]*?>)*\])?/i
+  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*?(?::\s*([\s\S]+?))?\])/i
+  let typeRegex2 = /\[(text|number|radio|order|checkbox)(?::\s*([\s\S]+?))?\]/i
 
   let answerRegex = /<li[\s\S]*?>([\s\S]+?)<\/li>/g // List-group element
   let numberRegex = /^\d*(,\s*\d*)*$/
@@ -56,7 +59,7 @@ exports.extractQuestions = function(html) {
   let questionsArray = getQuestions(html, questionRegex)
   let questionText, questionAnswersHtml
 
-  return questionsArray.map(function(questionHtml) {
+  return questionsArray.map(function(questionHtml, index) {
     // Question
     const question = {}
     let questionTitle = questionHtml.match(titleRegex)
@@ -129,6 +132,32 @@ exports.extractQuestions = function(html) {
         if (question.type === "radio") question.answer = question.answer[0]
         break
     }
+    // Check correctness
+    if (!question.text) {
+      console.log("Question's text is not valid!")
+      console.log(questionHtml)
+    }
+    if (!question.title) {
+      console.log("Question's title is not valid!")
+      console.log(questionHtml)
+    }
+    if (!question.type) {
+      console.log("Question's type is not valid!")
+      console.log(questionHtml)
+    }
+    if (
+      question.type != "text" &&
+      question.type != "number" &&
+      !question.options
+    ) {
+      console.log("Question's options are not valid!")
+      console.log(questionHtml)
+    }
+    if (!question.answer) {
+      console.log("Question's answer is not valid!")
+      console.log(questionHtml)
+    }
+
     return question
   })
 }
