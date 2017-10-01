@@ -44,10 +44,7 @@ exports.extractQuestions = function(html) {
   )
 
   let titleRegex = /(?:<h2>)\s*(.+?)<\/h2>/i
-  let typeA = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*(?::\s*([\s\S]+?))?(?:<[\s\S]*?>)*\])?/i
-  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*?(?::\s*([\s\S]+?))?\])/i
-  let typeRegex2 = /\[(text|number|radio|order|checkbox)(?::\s*([\s\S]+?))?\]/i
-
+  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*?(?::(?:<[\s\S]*?>)*?([\s\S]+?)(?:<[\s\S]*?>)*?)?\])/i
   let answerRegex = /<li[\s\S]*?>([\s\S]+?)<\/li>/g // List-group element
   let numberRegex = /^\d*(,\s*\d*)*$/
 
@@ -100,12 +97,12 @@ exports.extractQuestions = function(html) {
       case "checkbox":
         if (questionType) {
           if (isNumeric) {
-            question.answer = questionType[2].split(",").map(Number)
+            question.answer = questionType[2].split(",").map(x => x - 1)
           } else {
             question.answer = questionType[2]
               .toLowerCase()
               .split(",")
-              .map(x => x.trim().charCodeAt() - 97 + 1)
+              .map(x => x.trim().charCodeAt() - 97)
           }
         }
       case "order":
@@ -133,29 +130,24 @@ exports.extractQuestions = function(html) {
         break
     }
     // Check correctness
-    if (!question.text) {
-      console.log("Question's text is not valid!")
-      console.log(questionHtml)
+    if (typeof question.text === "undefined") {
+      console.log("Question's text is not valid!", index)
     }
-    if (!question.title) {
-      console.log("Question's title is not valid!")
-      console.log(questionHtml)
+    if (typeof question.title === "undefined") {
+      console.log("Question's title is not valid!", index)
     }
-    if (!question.type) {
-      console.log("Question's type is not valid!")
-      console.log(questionHtml)
+    if (typeof question.type === "undefined") {
+      console.log("Question's type is not valid!", index)
     }
     if (
       question.type != "text" &&
       question.type != "number" &&
-      !question.options
+      typeof question.options === "undefined"
     ) {
-      console.log("Question's options are not valid!")
-      console.log(questionHtml)
+      console.log("Question's options are not valid!", index)
     }
-    if (!question.answer) {
-      console.log("Question's answer is not valid!")
-      console.log(questionHtml)
+    if (typeof question.answer === "undefined") {
+      console.log("Question's answer is not valid!", index)
     }
 
     return question
