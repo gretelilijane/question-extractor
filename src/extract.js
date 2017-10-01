@@ -44,7 +44,7 @@ exports.extractQuestions = function(html) {
   )
 
   let titleRegex = /(?:<h2>)\s*(.+?)<\/h2>/i
-  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*?(?::(?:<[\s\S]*?>)*?([\s\S]+?)(?:<[\s\S]*?>)*?)?\])/i
+  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*?(?::\s*(?:<[\s\S]*?>)*([^<>]+?)(?:<[\s\S]*?>)*?)?\])/i
   let answerRegex = /<li[\s\S]*?>([\s\S]+?)<\/li>/g // List-group element
   let numberRegex = /^\d*(,\s*\d*)*$/
 
@@ -96,8 +96,11 @@ exports.extractQuestions = function(html) {
       case "radio":
       case "checkbox":
         if (questionType) {
+          if (index === 3) console.log(questionType)
           if (isNumeric) {
-            question.answer = questionType[2].split(",").map(x => x - 1)
+            question.answer = questionType[2]
+              .split(",")
+              .map(x => parseInt(x.trim()) - 1)
           } else {
             question.answer = questionType[2]
               .toLowerCase()
