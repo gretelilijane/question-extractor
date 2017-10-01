@@ -96,7 +96,7 @@ exports.extractQuestions = function(html) {
       case "radio":
       case "checkbox":
         if (questionType) {
-          if (index === 3) console.log(questionType)
+          //if (index === 3) console.log(questionType)
           if (isNumeric) {
             question.answer = questionType[2]
               .split(",")
