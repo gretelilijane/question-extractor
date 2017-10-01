@@ -16,8 +16,5 @@
     "url": "https://github.com/gretelilijane/question-extractor/issues"
   },
   "homepage": "https://github.com/gretelilijane/question-extractor#readme",
-  "dependencies": {
-    "mammoth": "^1.4.2",
-    "odt2html": "^1.0.1"
-  }
+  "dependencies": {}
 }
