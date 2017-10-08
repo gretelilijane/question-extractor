@@ -5,11 +5,16 @@ const fs = require("fs")
 // Question extractor
 const qe = require("../src/index")
 
-const filePath = path.join(__dirname, "html/kobras.html")
+const filePath = path.join(__dirname, "html/match.html")
 
 // Read html in
 fs.readFile(filePath, (err, html) => {
   if (err) throw err
-  let questions = qe.getQuestions(html.toString())
-  //console.log(questions)
+
+  try {
+    let questions = qe.getQuestions(html.toString())
+    console.log(questions)
+  } catch (err) {
+    console.log(err)
+  }
 })

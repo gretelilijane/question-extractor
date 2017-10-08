@@ -3,15 +3,27 @@ const path = require("path")
 // File system
 const fs = require("fs")
 
-function getQuestions(html, regex) {
+function exist(object, name, type, index) {
+  if (Array.isArray(object)) {
+    if (!object.length) {
+      throw { message: name + "_missing", type: type, index: index }
+    }
+  } else if (!object && object !== 0) {
+    throw { message: name + "_missing", type: type, index: index }
+  }
+}
+
+function getQuestions(html) {
   let h2Regex = /<h2>/g
   let h2Indices = []
   let index = 0
   let match
 
+  // Get questions' titles indices
   while ((match = h2Regex.exec(html))) {
     h2Indices.push(match.index)
   }
+  // Extract questions' html
   let questions = []
   for (let i = 0; i < h2Indices.length; ++i) {
     if (i === h2Indices.length - 1) {
@@ -26,35 +38,26 @@ function getQuestions(html, regex) {
 exports.extractQuestions = function(html) {
   // Check if the question type is established in the beginning of the file
   let defaultType
-  let questionType = html.match(/\[(radio|checkbox|order)\]/i)
+  let questionType = html.match(/\[(radio|checkbox|order)\]/i) // TODO!!!!!!!!!!!!
   if (questionType && questionType.index < html.match(/<h2>/i).index) {
     defaultType = questionType[1]
   }
-
-  let questionRegex = new RegExp(
-    "" +
-    /(?:<h2>)(?:\d+\.)?\s*(.+?)<\/h2>/.source + // Question title - match[0]
-    /([\s\S]+?)/.source + // Question text - match[1]
-    /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*(?::\s*([\s\S]+?))?(?:<[\s\S]*?>)*\])?/
-      .source + // Question type and correct answer info - match[2] & match[3]
-    /[\s\S]*?/.source + //trash
-    /(?:<(?:ol|ul)[\s\S]*?>([\s\S]+?)<\/(?:ul|ol)>)?/.source + // Answers list if exists - match[4]
-      /[\s\S]*?/.source,
-    "i"
-  )
-
+  // REGEX
   let titleRegex = /(?:<h2>)\s*(.+?)<\/h2>/i
-  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox)(?:<[\s\S]*?>)*?(?::\s*(?:<[\s\S]*?>)*([^<>]+?)(?:<[\s\S]*?>)*?)?\])/i
+  let typeRegex = /(?:\[(?:<[\s\S]*?>)*(text|number|radio|order|checkbox|match)(?:<[\s\S]*?>)*?(?::\s*(?:<[\s\S]*?>)*([^<>]+?)(?:<[\s\S]*?>)*?)?\])/i
   let answerRegex = /<li[\s\S]*?>([\s\S]+?)<\/li>/g // List-group element
   let numberRegex = /^\d*(,\s*\d*)*$/
+  // question.type is match
+  let categoriesRegex = /\[(?:<[\s\S]*?>)*categories(?:<[\s\S]*?>)*\](?:[\s\S]*?)*?<(?:ol|ul)([\s\S])*?<\/(?:ol|ul)/i
+  let objectsRegex = /<(?:ol|ul)([\s\S])*?<\/(?:ol|ul)(?:[\s\S])*?\[(?:<[\s\S]*?>)*categories(?:<[\s\S]*?>)*\](?:[\s\S]*?)*?/i
 
-  let questions = []
-  let match, answerMatch
-  let i = 0
+  // VARIABLES
+  // question.type is match
+  let objectMatch, categoryMatch, categoriesHtml, objectsHtml
 
   // Get question's html
-  let questionsArray = getQuestions(html, questionRegex)
-  let questionText, questionAnswersHtml
+  let questionsArray = getQuestions(html)
+  let questionText, questionAnswersHtml, answerMatch
 
   return questionsArray.map(function(questionHtml, index) {
     // Question
@@ -63,49 +66,72 @@ exports.extractQuestions = function(html) {
     let questionType = questionHtml.match(typeRegex)
     let isNumeric, qi, ai
 
+    // TYPE
     if (questionType) {
       qi = questionType.index
       ai = questionType.index + questionType[0].length
       question.type = questionType[1].toLowerCase()
+      // Check if options are numeric or alphabetic
       isNumeric = numberRegex.test(questionType[2])
-    } else {
+    } else if (defaultType) {
+      // If questionType was not in the question regex then type is defaultType
       question.type = defaultType.toLowerCase()
       qi = ai = Math.max(
         questionHtml.lastIndexOf("<ol"),
         questionHtml.lastIndexOf("<ul")
       )
+    } else {
+      throw { message: "type_missing", index }
     }
 
-    question.title = questionTitle[1]
+    // TITLE
+    if (questionTitle) {
+      question.title = questionTitle[1]
+    } else {
+      throw { message: "title_missing", index }
+    }
+
+    // TEXT
     question.text = questionHtml.substring(
       questionTitle.index + questionTitle[0].length,
       qi
     )
-
     questionAnswersHtml = questionHtml.substring(ai)
-
+    exist(questionAnswersHtml, "answer_html", "html", index)
+    // ANSWERS & OPTIONS
+    // TODO: questionTYpe[2]
     switch (question.type) {
       case "text":
         question.answer = questionType[2]
+        // Check if text type answer is correctly written
+        exist(question.answer, "answer", "text", index)
         break
       case "number":
         question.answer = parseFloat(
           questionType[2].replace(/\s/g, "").replace(",", ".")
         )
+        // Check if number type answer is correctly written
+        exist(question.answer, "answer", "number", index)
         break
       case "radio":
       case "checkbox":
         if (questionType) {
-          //if (index === 3) console.log(questionType)
-          if (isNumeric) {
-            question.answer = questionType[2]
-              .split(",")
-              .map(x => parseInt(x.trim()) - 1)
-          } else {
-            question.answer = questionType[2]
-              .toLowerCase()
-              .split(",")
-              .map(x => x.trim().charCodeAt() - 97)
+          // Question type is established in the question
+          try {
+            if (isNumeric) {
+              // TODO: Question's answer not established with the type
+              question.answer = questionType[2]
+                .split(",")
+                .map(x => parseInt(x.trim()) - 1)
+            } else {
+              // Question type is alphabetic
+              question.answer = questionType[2]
+                .toLowerCase()
+                .split(",")
+                .map(x => x.trim().charCodeAt() - 97)
+            }
+          } catch (err) {
+            exist(questionType[2], "answer_indices", "RC", index)
           }
         }
       case "order":
@@ -115,8 +141,11 @@ exports.extractQuestions = function(html) {
         question.options = []
         let i = 0
         while ((answerMatch = answerRegex.exec(questionAnswersHtml))) {
-          if (question.type === "order") question.answer.push(i)
-          else if (!questionType) {
+          if (question.type === "order") {
+            question.answer.push(i)
+          } else if (!questionType) {
+            // Question type is not established in the question
+            // Check bold answers
             if (answerMatch[0].match(/font-weight:700/)) {
               answerMatch[1] = answerMatch[1].replace(
                 "font-weight:700",
@@ -128,31 +157,67 @@ exports.extractQuestions = function(html) {
           question.options.push(answerMatch[1])
           ++i
         }
+        // Check if answers and options exist
+        exist(question.answer, "answer", "CRO", index)
 
-        if (question.type === "radio") question.answer = question.answer[0]
+        if (question.type === "radio") {
+          question.answer = question.answer[0]
+        }
+
+        exist(question.options, "options", "CRO", index)
         break
-    }
-    // Check correctness
-    if (typeof question.text === "undefined") {
-      console.log("Question's text is not valid!", index)
-    }
-    if (typeof question.title === "undefined") {
-      console.log("Question's title is not valid!", index)
-    }
-    if (typeof question.type === "undefined") {
-      console.log("Question's type is not valid!", index)
-    }
-    if (
-      question.type != "text" &&
-      question.type != "number" &&
-      typeof question.options === "undefined"
-    ) {
-      console.log("Question's options are not valid!", index)
-    }
-    if (typeof question.answer === "undefined") {
-      console.log("Question's answer is not valid!", index)
-    }
+      case "match":
+        try {
+          categoriesHtml = questionAnswersHtml.match(categoriesRegex)[0]
+          objectsHtml = questionAnswersHtml.match(objectsRegex)[0]
+        } catch (err) {
+          exist(categoriesHtml, "categories_html", "match", index)
+          exist(objectsHtml, "objects_html", "match", index)
+        }
 
+        question.options = []
+        question.matchObjects = []
+
+        // CATEGORIES into question.options
+        while ((answerMatch = answerRegex.exec(categoriesHtml))) {
+          question.options.push(answerMatch[0])
+        }
+        exist(question.options, "options", "match", index)
+        // OBJECTS into question.matchObjects
+        while ((answerMatch = answerRegex.exec(objectsHtml))) {
+          question.matchObjects.push(answerMatch[0])
+        }
+        exist(question.matchObjects, "match_objects", "match", index)
+
+        // ANSWERS
+        let htmlSplit
+        try {
+          htmlSplit = questionType[2]
+            .replace(/[a-z]/gi, chr => {
+              return chr.toLowerCase().charCodeAt() - 96
+            })
+            .split(",")
+        } catch (err) {
+          exist(questionType[2], "answer_indices", "match", index)
+        }
+
+        question.answer = []
+        let answer = []
+        for (let i = 0; i < htmlSplit.length; ++i) {
+          if (!answer.length && /\(/.test(htmlSplit[i])) {
+            answer.push(parseInt(htmlSplit[i].trim().substring(1)) - 1)
+          } else if (/\)/.test(htmlSplit[i])) {
+            answer.push(parseInt(htmlSplit[i].trim().substring(0, 1)) - 1)
+            question.answer.push(answer)
+            answer = []
+          } else if (answer.length) {
+            answer.push(parseInt(htmlSplit[i].trim()) - 1)
+          } else {
+            question.answer.push(parseInt(htmlSplit[i].trim()) - 1)
+          }
+        }
+        exist(question.answer, "answer", "match", index)
+    }
     return question
   })
 }
