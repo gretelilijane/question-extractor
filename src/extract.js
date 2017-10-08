@@ -180,12 +180,12 @@ exports.extractQuestions = function(html) {
 
         // CATEGORIES into question.options
         while ((answerMatch = answerRegex.exec(categoriesHtml))) {
-          question.options.push(answerMatch[0])
+          question.options.push(answerMatch[1])
         }
         exist(question.options, "options", "match", index)
         // OBJECTS into question.matchObjects
         while ((answerMatch = answerRegex.exec(objectsHtml))) {
-          question.matchObjects.push(answerMatch[0])
+          question.matchObjects.push(answerMatch[1])
         }
         exist(question.matchObjects, "match_objects", "match", index)
 
