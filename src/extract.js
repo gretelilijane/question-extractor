@@ -254,7 +254,23 @@ exports.extractQuestions = function(html) {
             indices.filter(index => !isNaN(index))
           )
         }
+        // Check that each object has a category
+        if (question.answer.length != question.matchObjects.length) {
+          throw { message: "answer_invalid", type: question.type, index }
+        }
     }
+    // Check that answer indices will not be larger than the number of options
+    if (question.options.length && question.answer) {
+      let numRegex = /(\d+)/g
+      let match
+      while ((match = numRegex.exec(question.answer))) {
+        if (match[0] >= question.options.length) {
+          throw { message: "answer_invalid", type: question.type, index }
+        }
+      }
+      question.answer
+    }
+
     return question
   })
 }
