@@ -106,14 +106,14 @@ exports.extractQuestions = function(html) {
       case "text":
         question.answer = questionType[2]
         // Check if text type answer is correctly written
-        exist(question.answer, "answer", "text", index)
+        exist(question.answer, "answer", question.type, index)
         break
       case "number":
         question.answer = parseFloat(
           questionType[2].replace(/\s/g, "").replace(",", ".")
         )
         // Check if number type answer is correctly written
-        exist(question.answer, "answer", "number", index)
+        exist(question.answer, "answer", question.type, index)
         break
       case "radio":
       case "checkbox":
@@ -133,7 +133,7 @@ exports.extractQuestions = function(html) {
                 .map(x => x.trim().charCodeAt() - 97)
             }
           } catch (err) {
-            exist(questionType[2], "answer_indices", "RC", index)
+            exist(questionType[2], "answer_indices", question.type, index)
           }
         }
       case "order":
@@ -160,13 +160,13 @@ exports.extractQuestions = function(html) {
           ++i
         }
         // Check if answers and options exist
-        exist(question.answer, "answer", "CRO", index)
+        exist(question.answer, "answer", question.type, index)
 
         if (question.type === "radio") {
           question.answer = question.answer[0]
         }
 
-        exist(question.options, "options", "CRO", index)
+        exist(question.options, "options", question.type, index)
         break
       case "match":
         try {
@@ -184,12 +184,12 @@ exports.extractQuestions = function(html) {
         while ((answerMatch = answerRegex.exec(categoriesHtml))) {
           question.options.push(answerMatch[1])
         }
-        exist(question.options, "options", "match", index)
+        exist(question.options, "options", question.type, index)
         // OBJECTS into question.matchObjects
         while ((answerMatch = answerRegex.exec(objectsHtml))) {
           question.matchObjects.push(answerMatch[1])
         }
-        exist(question.matchObjects, "match_objects", "match", index)
+        exist(question.matchObjects, "match_objects", question.type, index)
 
         // ANSWERS
         let matchAnswersSplit, matchRadio
@@ -202,7 +202,7 @@ exports.extractQuestions = function(html) {
             })
             .split(",")
         } catch (err) {
-          exist(questionType[2], "answer_indices", "match", index)
+          exist(questionType[2], "answer_indices", question.type, index)
         }
 
         question.type = matchRadio ? "match_radio" : "match_checkbox"
@@ -246,7 +246,7 @@ exports.extractQuestions = function(html) {
             }
           }
         }
-        exist(question.answer, "answer", "match", index)
+        exist(question.answer, "answer", question.type, index)
 
         // Remove NaN's!
         if (!matchRadio) {
