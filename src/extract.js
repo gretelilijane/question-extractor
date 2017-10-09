@@ -192,9 +192,11 @@ exports.extractQuestions = function(html) {
         exist(question.matchObjects, "match_objects", "match", index)
 
         // ANSWERS
-        let htmlSplit
+        let matchAnswersSplit, matchRadio
         try {
-          htmlSplit = questionType[2]
+          // Check if it is radio or checkbox match question
+          matchRadio = questionType[2].indexOf("(") === -1
+          matchAnswersSplit = questionType[2]
             .replace(/[a-z]/gi, chr => {
               return chr.toLowerCase().charCodeAt() - 96
             })
@@ -203,22 +205,55 @@ exports.extractQuestions = function(html) {
           exist(questionType[2], "answer_indices", "match", index)
         }
 
+        question.type = matchRadio ? "match_radio" : "match_checkbox"
         question.answer = []
         let answer = []
-        for (let i = 0; i < htmlSplit.length; ++i) {
-          if (!answer.length && /\(/.test(htmlSplit[i])) {
-            answer.push(parseInt(htmlSplit[i].trim().substring(1)) - 1)
-          } else if (/\)/.test(htmlSplit[i])) {
-            answer.push(parseInt(htmlSplit[i].trim().substring(0, 1)) - 1)
+        for (let i = 0; i < matchAnswersSplit.length; ++i) {
+          if (/\(\d+/.test(matchAnswersSplit[i])) {
+            if (answer.length) {
+              throw {
+                message: "answer_badly_formatted",
+                type: question.type,
+                index
+              }
+            }
+            answer.push(parseInt(matchAnswersSplit[i].trim().substring(1)) - 1)
+          } else if (/\d+\)/.test(matchAnswersSplit[i])) {
+            if (!answer.length) {
+              throw {
+                message: "answer_badly_formatted",
+                type: question.type,
+                index
+              }
+            }
+            answer.push(
+              parseInt(matchAnswersSplit[i].trim().substring(0, 1)) - 1
+            )
             question.answer.push(answer)
             answer = []
           } else if (answer.length) {
-            answer.push(parseInt(htmlSplit[i].trim()) - 1)
+            answer.push(parseInt(matchAnswersSplit[i].trim()) - 1)
+          } else if (!matchRadio && !answer.length) {
+            question.answer.push([parseInt(matchAnswersSplit[i].trim()) - 1])
           } else {
-            question.answer.push(parseInt(htmlSplit[i].trim()) - 1)
+            question.answer.push(parseInt(matchAnswersSplit[i].trim()) - 1)
+          }
+          if (i === matchAnswersSplit.length - 1 && answer.length) {
+            throw {
+              message: "answer_badly_formatted",
+              type: question.type,
+              index
+            }
           }
         }
         exist(question.answer, "answer", "match", index)
+
+        // Remove NaN's!
+        if (!matchRadio) {
+          question.answer = question.answer.map(indices =>
+            indices.filter(index => !isNaN(index))
+          )
+        }
     }
     return question
   })

@@ -5,7 +5,7 @@ const fs = require("fs")
 // Question extractor
 const qe = require("../src/index")
 
-const filePath = path.join(__dirname, "html/problem.html")
+const filePath = path.join(__dirname, "html/match.html")
 
 // Read html in
 fs.readFile(filePath, (err, html) => {
@@ -13,7 +13,7 @@ fs.readFile(filePath, (err, html) => {
 
   try {
     let questions = qe.getQuestions(html.toString())
-    console.log(questions)
+    console.log(questions[0].answer)
   } catch (err) {
     console.log(err)
   }
