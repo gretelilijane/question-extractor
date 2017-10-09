@@ -36,6 +36,8 @@ function getQuestions(html) {
 }
 
 exports.extractQuestions = function(html) {
+  // Remove empty questions
+  html = html.replace(/<h2><\/h2>/g, "")
   // Check if the question type is established in the beginning of the file
   let defaultType
   let questionType = html.match(/\[(radio|checkbox|order)\]/i) // TODO!!!!!!!!!!!!
@@ -81,7 +83,7 @@ exports.extractQuestions = function(html) {
         questionHtml.lastIndexOf("<ul")
       )
     } else {
-      throw { message: "type_missing", index }
+      throw { message: "type_missing", html: questionHtml, index }
     }
 
     // TITLE

@@ -5,7 +5,7 @@ const fs = require("fs")
 // Question extractor
 const qe = require("../src/index")
 
-const filePath = path.join(__dirname, "html/match.html")
+const filePath = path.join(__dirname, "html/problem.html")
 
 // Read html in
 fs.readFile(filePath, (err, html) => {
